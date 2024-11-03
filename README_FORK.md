@@ -40,3 +40,6 @@ The split works like this:
 2 = horizontal
 3 = both
 ```
+
+## GUI interaction
+To toggle the macroblock grid on the image, press m.
