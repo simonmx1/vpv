@@ -483,6 +483,29 @@ void Window::display()
     ImGui::End();
 }
 
+static void drawMacroblock(ImVec2 from, ImVec2 to, int split)
+{
+    static ImU32 white = ImGui::GetColorU32(ImVec4(1, 1, 1, 1));
+    static ImU32 black = ImGui::GetColorU32(ImVec4(0, 0, 0, 1));
+
+    ImGui::GetWindowDrawList()->AddRect(from, to, black, 0, ~0, 2.5f);
+    ImGui::GetWindowDrawList()->AddRect(from, to, white);
+
+    ImVec2 midVertical((from.x + to.x) * 0.5f, from.y);
+    ImVec2 midHorizontal(from.x, (from.y + to.y) * 0.5f);
+
+    if (split == 1 || split == 3) {
+        ImVec2 midVerticalEnd((from.x + to.x) * 0.5f, to.y);
+        ImGui::GetWindowDrawList()->AddLine(midVertical, midVerticalEnd, white);
+    }
+
+    if (split == 2 || split == 3) {
+        ImVec2 midHorizontalEnd(to.x, (from.y + to.y) * 0.5f);
+        ImGui::GetWindowDrawList()->AddLine(midHorizontal, midHorizontalEnd, white);
+    }
+
+}
+
 static void drawGreenRect(ImVec2 from, ImVec2 to)
 {
     static ImU32 green = ImGui::GetColorU32(ImVec4(0, 1, 0, 1));
@@ -591,6 +614,31 @@ void Window::displaySequence(Sequence& seq)
                     seq.view->setOptimalZoom(contentRect.GetSize(), orderedto - orderedfrom + ImVec2(1, 1), factor);
                 }
                 ImGui::SetCursorPos(oldpos);
+            }
+        }
+
+        if (gMacroblocksShown) {
+            for (const auto& win : gWindows) {
+                const auto& s = win->getCurrentSequence();
+                if (!s)
+                    continue;
+                std::shared_ptr<Image> img = s->getCurrentImage();
+                if (!img)
+                    continue;
+
+                for (const auto& macroblock : seq.macroblocks) {
+                    ImVec2 from(macroblock.x, macroblock.y);
+                    ImVec2 to(macroblock.x + macroblock.width, macroblock.y + macroblock.height);
+
+                    ImVec2 fromwin = view.image2window(from, displayarea.getCurrentSize(), winSize, factor);
+                    ImVec2 towin = view.image2window(to, displayarea.getCurrentSize(), winSize, factor);
+
+                    fromwin += clip.Min;
+                    towin += clip.Min;
+
+                    drawMacroblock(fromwin, towin, macroblock.split);
+                }
+
             }
         }
 
@@ -933,6 +981,10 @@ void Window::displaySequence(Sequence& seq)
                 }
             }
             focusedit = true;
+        }
+
+        if (isKeyPressed("m")) {
+            gMacroblocksShown = !gMacroblocksShown;
         }
     }
 

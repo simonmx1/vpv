@@ -46,6 +46,7 @@
 #include "shaders.hpp"
 #include "strutils.hpp"
 #include "watcher.hpp"
+#include "json.hpp"
 
 #include "cousine_regular.c"
 
@@ -68,6 +69,8 @@ static void parseArgs(int argc, char** argv)
 
     std::map<std::shared_ptr<Sequence>, std::pair<std::string, EditType>> editings;
     std::map<std::shared_ptr<Sequence>, std::vector<std::string>> svgglobs;
+    std::map<std::shared_ptr<Sequence>, std::vector<std::string>> metadata;
+
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -92,9 +95,11 @@ static void parseArgs(int argc, char** argv)
         bool isshader = !strncmp(argv[i], "shader:", 7);
         // fromfile:
         bool isfromfile = !strncmp(argv[i], "fromfile:", 9);
+        // metadata:
+        bool ismetadata = !strncmp(argv[i], "metadata:", 9);
 
         bool iscommand = isedit || isconfig || isnewthing || isoldthing || islayout || issvg || isshader || isterm;
-        bool isfile = !iscommand && !isfromfile;
+        bool isfile = !iscommand && !isfromfile && !ismetadata;
         bool isanewsequence = isfile || isfromfile;
 
         if (arg == "av") {
@@ -229,6 +234,39 @@ static void parseArgs(int argc, char** argv)
             seq->setImageCollection(col, argv[i]);
             window->sequences.push_back(seq);
             has_one_sequence = true;
+        }
+
+        if (ismetadata) {
+
+            const char* filename = &argv[i][9];
+            std::ifstream jsonFile(filename);
+            if (!jsonFile.is_open()) {
+                fprintf(stderr, "could not open json file '%s', skipped\n", filename);
+                continue;
+            }
+
+            nlohmann::json j;
+            jsonFile >> j;
+
+            if (!j.contains("macroblocks") || !j["macroblocks"].is_array()) {
+                std::cerr << "JSON file is missing 'macroblocks' array." << std::endl;
+                continue;
+            }
+
+            std::vector<Macroblock> macroblocks;
+            for (const auto& block : j["macroblocks"]) {
+                Macroblock macroblock{};
+                macroblock.x = block.value("x", -1);
+                macroblock.y = block.value("y", -1);
+                macroblock.width = block.value("width", 16);
+                macroblock.height = block.value("height", 16);
+                macroblock.split = block.value("split", 0);
+
+                macroblocks.push_back(macroblock);
+            }
+
+            const auto& seq = gSequences[gSequences.size() - 1];
+            seq->setMacroblocks(macroblocks);
         }
     }
 

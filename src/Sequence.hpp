@@ -13,6 +13,7 @@
 #include "collection_expression.hpp"
 #include "editors.hpp"
 #include "fs.hpp"
+#include "Macroblock.hpp"
 
 struct View;
 struct Player;
@@ -43,6 +44,8 @@ struct Sequence : std::enable_shared_from_this<Sequence> {
 
     std::shared_ptr<ImageCollection> uneditedCollection;
     EditGUI editGUI;
+
+    std::vector<Macroblock> macroblocks;
 
     Sequence();
     ~Sequence();
@@ -75,6 +78,8 @@ struct Sequence : std::enable_shared_from_this<Sequence> {
     void removeCurrentFrame();
 
     bool putScriptSVG(const std::string& key, const std::string& buf);
+
+    void setMacroblocks(const std::vector<Macroblock>& blocks);
 
 private:
     int getDesiredFrameIndex() const;

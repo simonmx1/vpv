@@ -475,3 +475,9 @@ bool Sequence::putScriptSVG(const std::string& key, const std::string& buf)
     }
     return true;
 }
+
+void Sequence::setMacroblocks(const std::vector<Macroblock>& blocks) {
+    macroblocks = blocks;
+}
+
+
