@@ -43,3 +43,15 @@ The split works like this:
 
 ## GUI interaction
 To toggle the macroblock grid on the image, press m.
+
+
+## Block types
+The macroblock may contain a field "type" with values "I", "P", "S" or "B".
+By pressing n, a layer of transparent color will be added over the frame to show the types in the editor.
+
+
+## Subdivisions
+If split is 3 (both directions), each subblock can again be split using vertical, horizontal or both lines.
+This is indicated by the field "sub_split" and as an integer.
+The integer comes from the binary number of 8 bits, which represent the subsplits (2 bits each).
+11 11 11 11 => all subblocks are split both ways (3, 3, 3, 3), which together is 255 (11111111)
