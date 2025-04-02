@@ -255,12 +255,16 @@ static void parseArgs(int argc, char** argv)
 
             std::vector<Macroblock> macroblocks;
             for (const auto& block : j["macroblocks"]) {
+                std::array<int, 4> sub_splits = {};
+                Macroblock::parse_sub_splits(sub_splits, block.value("sub_split", 0));
                 Macroblock macroblock{};
                 macroblock.x = block.value("x", -1);
                 macroblock.y = block.value("y", -1);
                 macroblock.width = block.value("width", 16);
                 macroblock.height = block.value("height", 16);
                 macroblock.split = block.value("split", 0);
+                macroblock.sub_split = sub_splits;
+                macroblock.type = block.value("type", "I")[0];
 
                 macroblocks.push_back(macroblock);
             }

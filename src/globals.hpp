@@ -49,4 +49,5 @@ extern int gShowView;
 extern bool gReloadImages;
 extern bool gShowHelp;
 
-extern bool gMacroblocksShown;
+extern bool gMacroblockBordersShown;
+extern bool gMacroblockOverlayShown;
