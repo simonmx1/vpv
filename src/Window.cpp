@@ -9,7 +9,10 @@
 
 #include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
+#include "strutils.hpp"
+
 #include <imgui_internal.h>
+#include <oneapi/tbb/detail/_range_common.h>
 
 #ifdef USE_IIO
 extern "C" {
@@ -483,60 +486,35 @@ void Window::display()
     ImGui::End();
 }
 
-static void drawSplit(ImVec2 from, ImVec2 to, int split, ImU32 color)
-{
-    ImVec2 midVertical((from.x + to.x) * 0.5f, from.y);
-    ImVec2 midHorizontal(from.x, (from.y + to.y) * 0.5f);
-
-    if (split == 1 || split == 3) {
-        ImVec2 midVerticalEnd((from.x + to.x) * 0.5f, to.y);
-        ImGui::GetWindowDrawList()->AddLine(midVertical, midVerticalEnd, color);
-    }
-
-    if (split == 2 || split == 3) {
-        ImVec2 midHorizontalEnd(to.x, (from.y + to.y) * 0.5f);
-        ImGui::GetWindowDrawList()->AddLine(midHorizontal, midHorizontalEnd, color);
-    }
-}
-
-
 static void drawMacroblockOverlays(ImVec2 from, ImVec2 to, ImU32 color)
 {
     auto* drawList = ImGui::GetWindowDrawList();
     drawList->AddRectFilled(from, to, color, 0);
 }
 
-
-static void drawMacroblockBorders(ImVec2 from, ImVec2 to, int split, std::array<int, 4> sub_splits)
+static void drawBlockBorders(ImVec2 from, ImVec2 to, const Block& block)
 {
+    unsigned split = block.split;
+
     static ImU32 white = ImGui::GetColorU32(ImVec4(1, 1, 1, 1));
-    static ImU32 black = ImGui::GetColorU32(ImVec4(0, 0, 0, 1));
 
     auto* drawList = ImGui::GetWindowDrawList();
 
-    drawList->AddRect(from, to, black, 0, ~0, 2.5f);
-    drawList->AddRect(from, to, white);
+    drawList->AddRect(from, to, white, 0, ~0, 0.2f);
 
-    drawSplit(from, to, split, white);
+    ImVec2 midVertical((from.x + to.x) * 0.5f, from.y);
+    ImVec2 midHorizontal(from.x, (from.y + to.y) * 0.5f);
 
-    if (split == 3) {
-        ImVec2 subSize((to.x - from.x) * 0.5f, (to.y - from.y) * 0.5f);
-
-        ImVec2 subBlocks[4] = {
-            from,
-            { from.x + subSize.x, from.y },
-            { from.x, from.y + subSize.y },
-            { from.x + subSize.x, from.y + subSize.y }
-        };
-
-        for (int i = 0; i < 4; i++) {
-            if (sub_splits[i] > 0) {
-                ImVec2 subFrom = subBlocks[i];
-                ImVec2 subTo = { subFrom.x + subSize.x, subFrom.y + subSize.y };
-                drawSplit(subFrom, subTo, sub_splits[i], white);
-            }
-        }
+    if (split == 1 || split == 3) {
+        ImVec2 midVerticalEnd((from.x + to.x) * 0.5f, to.y);
+        ImGui::GetWindowDrawList()->AddLine(midVertical, midVerticalEnd, white);
     }
+
+    if (split == 2 || split == 3) {
+        ImVec2 midHorizontalEnd(to.x, (from.y + to.y) * 0.5f);
+        ImGui::GetWindowDrawList()->AddLine(midHorizontal, midHorizontalEnd, white);
+    }
+
 }
 
 static void drawGreenRect(ImVec2 from, ImVec2 to)
@@ -612,7 +590,7 @@ void Window::displaySequence(Sequence& seq)
             snprintf(buf, sizeof(buf), "%d %d", (int)from.x, (int)from.y);
             drawGreenText(buf, fromwin);
             snprintf(buf, sizeof(buf), "%s%d %d (w:%d,h:%d,d:%.2f)",
-                (ImGui::IsMouseDown(1) ? "  " : ""), // make the the cursor does not hide the text
+                (ImGui::IsMouseDown(1) ? "  " : ""), // make the cursor does not hide the text
                 (int)to.x, (int)to.y,
                 (int)std::abs((to - from).x),
                 (int)std::abs((to - from).y),
@@ -660,8 +638,12 @@ void Window::displaySequence(Sequence& seq)
                     continue;
 
                 for (const auto& macroblock : seq.macroblocks) {
-                    ImVec2 from(macroblock.x, macroblock.y);
-                    ImVec2 to(macroblock.x + macroblock.width, macroblock.y + macroblock.height);
+
+                    float x = macroblock.pos.x;
+                    float y = macroblock.pos.y;
+
+                    ImVec2 from(x, y);
+                    ImVec2 to(x + macroblock.size, y + macroblock.size);
 
                     ImVec2 fromwin = view.image2window(from, displayarea.getCurrentSize(), winSize, factor);
                     ImVec2 towin = view.image2window(to, displayarea.getCurrentSize(), winSize, factor);
@@ -669,28 +651,45 @@ void Window::displaySequence(Sequence& seq)
                     fromwin += clip.Min;
                     towin += clip.Min;
 
-                    ImU32 color;
-                    switch (macroblock.type) {
-                    case 'I':
-                        color = ImGui::GetColorU32(ImVec4(1.0f, 0.0f, 0.0f, 0.2f)); // Transparent Red
-                        break;
-                    case 'P':
-                        color = ImGui::GetColorU32(ImVec4(0.0f, 0.0f, 1.0f, 0.2f)); // Transparent Blue
-                        break;
-                    case 'S':
-                        color = ImGui::GetColorU32(ImVec4(0.0f, 1.0f, 0.0f, 0.2f)); // Transparent Green
-                        break;
-                    case 'B':
-                        color = ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 0.0f, 0.2f)); // Transparent Yellow
-                        break;
-                    default:
-                        color = ImGui::GetColorU32(ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-                    }
-
                     if (gMacroblockBordersShown) {
-                        drawMacroblockBorders(fromwin, towin, macroblock.split, macroblock.sub_split);
+                        drawBlockBorders(fromwin, towin, macroblock);
+
+                         if (macroblock.blocks.has_value()) {
+                             for (const auto& subBlock : macroblock.blocks.value()) {
+                                 float x = subBlock.pos.x;
+                                 float y = subBlock.pos.y;
+
+                                 ImVec2 from(x, y);
+                                 ImVec2 to(x + subBlock.size, y + subBlock.size);
+
+                                 ImVec2 fromwin = view.image2window(from, displayarea.getCurrentSize(), winSize, factor);
+                                 ImVec2 towin = view.image2window(to, displayarea.getCurrentSize(), winSize, factor);
+
+                                 fromwin += clip.Min;
+                                 towin += clip.Min;
+                                 drawBlockBorders(fromwin, towin, subBlock);
+                             }
+                         }
                     }
                     if (gMacroblockOverlayShown) {
+                        ImU32 color;
+                        switch (macroblock.type) {
+                        case I:
+                            color = ImGui::GetColorU32(ImVec4(1.0f, 0.0f, 0.0f, 0.2f)); // Transparent Red
+                            break;
+                        case P:
+                            color = ImGui::GetColorU32(ImVec4(0.0f, 0.0f, 1.0f, 0.2f)); // Transparent Blue
+                            break;
+                        case S:
+                            color = ImGui::GetColorU32(ImVec4(0.0f, 1.0f, 0.0f, 0.2f)); // Transparent Green
+                            break;
+                        case B:
+                            color = ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 0.0f, 0.2f)); // Transparent Yellow
+                            break;
+                        default:
+                            color = ImGui::GetColorU32(ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+                        }
+
                         drawMacroblockOverlays(fromwin, towin, color);
                     }
                 }

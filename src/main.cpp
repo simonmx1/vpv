@@ -41,12 +41,12 @@
 #include "dragndrop.hpp"
 #include "events.hpp"
 #include "globals.hpp"
+#include "json.hpp"
 #include "layout.hpp"
 #include "menu.hpp"
 #include "shaders.hpp"
 #include "strutils.hpp"
 #include "watcher.hpp"
-#include "json.hpp"
 
 #include "cousine_regular.c"
 
@@ -70,7 +70,6 @@ static void parseArgs(int argc, char** argv)
     std::map<std::shared_ptr<Sequence>, std::pair<std::string, EditType>> editings;
     std::map<std::shared_ptr<Sequence>, std::vector<std::string>> svgglobs;
     std::map<std::shared_ptr<Sequence>, std::vector<std::string>> metadata;
-
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -129,6 +128,7 @@ static void parseArgs(int argc, char** argv)
                 colormap = newColormap();
             }
         }
+
 
         if (isoldthing) {
             int id = atoi(&arg[2]) - 1;
@@ -255,18 +255,39 @@ static void parseArgs(int argc, char** argv)
 
             std::vector<Macroblock> macroblocks;
             for (const auto& block : j["macroblocks"]) {
-                std::array<int, 4> sub_splits = {};
-                Macroblock::parse_sub_splits(sub_splits, block.value("sub_split", 0));
-                Macroblock macroblock{};
-                macroblock.x = block.value("x", -1);
-                macroblock.y = block.value("y", -1);
-                macroblock.width = block.value("width", 16);
-                macroblock.height = block.value("height", 16);
-                macroblock.split = block.value("split", 0);
-                macroblock.sub_split = sub_splits;
-                macroblock.type = block.value("type", "I")[0];
+                auto pos = Pos(block.value("pos", std::array<unsigned int, 2>()));
+                std::vector<std::vector<std::tuple<int, int, int>>> motion_vectors;
 
-                macroblocks.push_back(macroblock);
+                if (block.contains("motion_vectors")) {
+                    for (const auto& row : block["motion_vectors"]) {
+                        std::vector<std::tuple<int, int, int>> row_vectors;
+                        for (const auto& vec : row) {
+                            int dx = vec.at(0);
+                            int dy = vec.at(1);
+                            int ref_idx = vec.at(2);
+                            row_vectors.emplace_back(dx, dy, ref_idx);
+                        }
+                        motion_vectors.push_back(row_vectors);
+                    }
+                }
+                char block_type = block.value("type", "S").at(0);
+                unsigned int split = block.value("split", 0);
+
+                switch (block_type) {
+                case 'I':
+                    macroblocks.push_back(Macroblock(I, pos, split, block.value("sub_split", 0)));
+                    break;
+                case 'P':
+                    macroblocks.push_back(Macroblock(P, pos, split, block.value("sub_split", 0), motion_vectors));
+                    break;
+                case 'B':
+                    macroblocks.push_back(Macroblock(B, pos, split, block.value("sub_split", 0), motion_vectors));
+                    break;
+                default:
+                    macroblocks.push_back(Macroblock(S, pos, motion_vectors));
+                    break;
+
+                }
             }
 
             const auto& seq = gSequences[gSequences.size() - 1];
