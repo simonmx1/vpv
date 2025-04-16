@@ -49,4 +49,5 @@ struct Window : std::enable_shared_from_this<Window> {
 
     std::shared_ptr<Sequence> getCurrentSequence() const;
     std::string getTitle() const;
+    ImVec2 getWindowPosition(Sequence&, ImVec2) const;
 };

@@ -32,8 +32,9 @@ int gActive;
 int gShowView;
 bool gReloadImages;
 bool gShowHelp = false;
-bool gMacroblockBordersShown;
+int gMacroblockBordersShown;
 bool gMacroblockOverlayShown;
+bool gMacroblockVectorsShown;
 
 Terminal term;
 Terminal& gTerminal = term;

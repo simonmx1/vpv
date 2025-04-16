@@ -256,18 +256,15 @@ static void parseArgs(int argc, char** argv)
             std::vector<Macroblock> macroblocks;
             for (const auto& block : j["macroblocks"]) {
                 auto pos = Pos(block.value("pos", std::array<unsigned int, 2>()));
-                std::vector<std::vector<std::tuple<int, int, int>>> motion_vectors;
+                std::vector<std::vector<std::tuple<int, int, int>>> motionVectors;
 
                 if (block.contains("motion_vectors")) {
                     for (const auto& row : block["motion_vectors"]) {
-                        std::vector<std::tuple<int, int, int>> row_vectors;
+                        std::vector<std::tuple<int, int, int>> rowVectors;
                         for (const auto& vec : row) {
-                            int dx = vec.at(0);
-                            int dy = vec.at(1);
-                            int ref_idx = vec.at(2);
-                            row_vectors.emplace_back(dx, dy, ref_idx);
+                            rowVectors.emplace_back(vec.at(0), vec.at(1), vec.at(2));
                         }
-                        motion_vectors.push_back(row_vectors);
+                        motionVectors.push_back(rowVectors);
                     }
                 }
                 char block_type = block.value("type", "S").at(0);
@@ -275,16 +272,16 @@ static void parseArgs(int argc, char** argv)
 
                 switch (block_type) {
                 case 'I':
-                    macroblocks.push_back(Macroblock(I, pos, split, block.value("sub_split", 0)));
+                    macroblocks.emplace_back(I, pos, split, block.value("sub_split", 0));
                     break;
                 case 'P':
-                    macroblocks.push_back(Macroblock(P, pos, split, block.value("sub_split", 0), motion_vectors));
+                    macroblocks.emplace_back(P, pos, split, block.value("sub_split", 0), motionVectors);
                     break;
                 case 'B':
-                    macroblocks.push_back(Macroblock(B, pos, split, block.value("sub_split", 0), motion_vectors));
+                    macroblocks.emplace_back(B, pos, split, block.value("sub_split", 0), motionVectors);
                     break;
                 default:
-                    macroblocks.push_back(Macroblock(S, pos, motion_vectors));
+                    macroblocks.emplace_back(S, pos, motionVectors);
                     break;
 
                 }
