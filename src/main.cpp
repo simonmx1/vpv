@@ -278,10 +278,10 @@ static void parseArgs(int argc, char** argv)
                     macroblocks.emplace_back(P, pos, split, block.value("sub_split", 0), motionVectors);
                     break;
                 case 'B':
-                    macroblocks.emplace_back(B, pos, split, block.value("sub_split", 0), motionVectors);
+                    macroblocks.emplace_back(B, pos, split, motionVectors);
                     break;
                 default:
-                    macroblocks.emplace_back(S, pos, motionVectors);
+                    macroblocks.emplace_back(I, pos, 0, 0);
                     break;
 
                 }

@@ -1,11 +1,11 @@
 #ifndef MACROBLOCK_H
 #define MACROBLOCK_H
 
+#include <iostream>
 #include <optional>
 #include <utility>
 #include <variant>
 #include <vector>
-#include <iostream>
 
 constexpr unsigned int MACROBLOCK_SIZE = 16;
 constexpr unsigned int SUBSPLIT_MASK = 0b11; // 3
@@ -82,7 +82,8 @@ private:
         }
     }
 
-    static void validateVectors(const std::vector<std::vector<std::tuple<int, int, int>>>& vectors, size_t outer, size_t inner = -1) {
+    static void validateVectors(const std::vector<std::vector<std::tuple<int, int, int>>>& vectors, size_t outer, size_t inner = -1)
+    {
         // May seem like unreachable code right now, but might produce segmentation fault later
         // ReSharper disable once CppDFAConstantConditions
         if (vectors.empty() && outer == 0) {
@@ -90,7 +91,8 @@ private:
             return;
         }
         if (vectors.size() != outer || inner != -1 && vectors[0].size() != inner) {
-            std::cout << vectors.size() << "," << outer << std::endl << vectors[0].size() << "," << inner << std::endl;
+            std::cout << vectors.size() << "," << outer << std::endl
+                      << vectors[0].size() << "," << inner << std::endl;
             throw std::invalid_argument("Invalid motion vector dimensions!");
         }
     }
@@ -157,9 +159,6 @@ public:
         } else if (split == 3) {
             if (subSplit == 0) {
                 initSubBlocks(pos, subSplit, motionVectors);
-                // for (int i = 0; i < 4; ++i) {
-                //     this->motionVectors.push_back(motionVectors[0][i]);
-                // }
             } else {
                 validateVectors(motionVectors, 4);
 
@@ -167,6 +166,33 @@ public:
             }
         } else {
             throw std::invalid_argument("Invalid split value for Macroblock P");
+        }
+    }
+
+    // Constructor for `BlockType::B` with motion vectors
+    explicit Macroblock(MacroblockType type,
+        Pos pos,
+        unsigned int split,
+        const std::vector<std::vector<std::tuple<int, int, int>>>& motionVectors)
+        : Block(MACROBLOCK_SIZE, scaledPos(pos), split)
+        , type(type)
+    {
+        if (type != B) {
+            throw std::invalid_argument("Invalid type for Macroblock B");
+        }
+        if (split == 0) {
+            // Fix validation with variable length 1 or 2
+            this->motionVectors.push_back(motionVectors[0][0]);
+        } else if (split == 1 || split == 2) {
+            // Fix validation with variable length 1 or 2
+            this->motionVectors.push_back(motionVectors[0][0]);
+            this->motionVectors.push_back(motionVectors[0][1]);
+            this->motionVectors.push_back(motionVectors[1][0]);
+            this->motionVectors.push_back(motionVectors[1][1]);
+        } else if (split == 3) {
+            initSubBlocks(pos, 0, motionVectors);
+        } else {
+            throw std::invalid_argument("Invalid split value for Macroblock B");
         }
     }
 };
