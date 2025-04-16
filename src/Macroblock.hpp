@@ -5,6 +5,7 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <iostream>
 
 constexpr unsigned int MACROBLOCK_SIZE = 16;
 constexpr unsigned int SUBSPLIT_MASK = 0b11; // 3
@@ -69,7 +70,7 @@ private:
         auto& bs = blocks.emplace();
         for (unsigned int i = 0; i < 2; ++i) {
             for (unsigned int j = 0; j < 2; ++j) {
-                const unsigned int idx = i * 2 + j;
+                const unsigned int idx = 3 - (i * 2 + j);
                 auto sub_pos = Pos({ parent_pos.x * MACROBLOCK_SIZE + j * sub_size, parent_pos.y * MACROBLOCK_SIZE + i * sub_size });
                 if (vectors.empty()) {
                     bs[idx] = Block(sub_size, sub_pos, subSplit & SUBSPLIT_MASK);
@@ -88,8 +89,9 @@ private:
             // ReSharper disable once CppDFAUnreachableCode
             return;
         }
-        if (vectors.size() != outer || inner != -1 || vectors[0].size() != inner) {
-            throw std::invalid_argument("Invalid motion vector dimensions");
+        if (vectors.size() != outer || inner != -1 && vectors[0].size() != inner) {
+            std::cout << vectors.size() << "," << outer << std::endl << vectors[0].size() << "," << inner << std::endl;
+            throw std::invalid_argument("Invalid motion vector dimensions!");
         }
     }
 
@@ -154,9 +156,10 @@ public:
             this->motionVectors.push_back(motionVectors[0][1]);
         } else if (split == 3) {
             if (subSplit == 0) {
-                for (int i = 0; i < 4; ++i) {
-                    this->motionVectors.push_back(motionVectors[0][i]);
-                }
+                initSubBlocks(pos, subSplit, motionVectors);
+                // for (int i = 0; i < 4; ++i) {
+                //     this->motionVectors.push_back(motionVectors[0][i]);
+                // }
             } else {
                 validateVectors(motionVectors, 4);
 

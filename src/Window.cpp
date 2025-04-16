@@ -597,6 +597,43 @@ static ImU32 getMacroblockColor(MacroblockType type)
     }
 }
 
+static ImVec2 getMotionVectorBase(MacroblockType type, Block block, unsigned int vectorIndex)
+{
+    float halfSize = block.size / 2;
+    float x = block.pos.x;
+    float y = block.pos.y;
+
+    if (type == S || (type == P && block.split == 0)) {
+        return {x + halfSize, y + halfSize};
+    }
+
+    if (type == P) {
+        float quarter = block.size * 0.25f;
+        float threeQuarter = block.size * 0.75f;
+
+        switch (block.split) {
+        case 1: {
+            float mvX = x + (vectorIndex == 0 ? quarter : threeQuarter);
+            return {mvX, y + halfSize};
+        }
+        case 2: {
+            float mvY = y + (vectorIndex == 0 ? quarter : threeQuarter);
+            return {x + halfSize, mvY};
+        }
+        case 3: {
+            float mvX = x + (vectorIndex < 2 ? quarter : threeQuarter);
+            float mvY = y + ((vectorIndex % 2 == 0) ? quarter : threeQuarter);
+            return {mvX, mvY};
+        }
+        default:
+            return {0, 0};
+        }
+    }
+
+    return {0, 0};
+}
+
+
 ImVec2 Window::getWindowPosition(Sequence& seq, ImVec2 pos) const
 {
     View& view = *seq.view;
@@ -737,24 +774,28 @@ void Window::displaySequence(Sequence& seq)
                                 subTowin += clip.Min;
 
                                 drawBlockBorders(subFromwin, subTowin, subBlock);
+
+                                if (gMacroblockVectorsShown) {
+                                    unsigned int vectorIndex = 0;
+                                    for (auto motionVector : subBlock.motionVectors) {
+                                        int referenceFrame = std::get<2>(motionVector);
+                                        from = getMotionVectorBase(macroblock.type, subBlock, vectorIndex++);
+                                        fromwin = getWindowPosition(seq, from);
+                                        fromwin += clip.Min;
+                                        ImVec2 vectorTowin = getWindowPosition(seq, from + ImVec2(std::get<0>(motionVector), std::get<1>(motionVector)));
+                                        vectorTowin += clip.Min;
+
+                                        vectorTowin -= fromwin;
+
+                                        drawMacroblockVector(fromwin, vectorTowin, IM_COL32_WHITE);
+                                    }
+                                }
                             }
                         } else if (gMacroblockVectorsShown) {
                             unsigned int vectorIndex = 0;
                             for (auto motionVector : macroblock.motionVectors) {
                                 int referenceFrame = std::get<2>(motionVector);
-                                float halfSize = macroblock.size / 2;
-
-                                if (macroblock.type == S || macroblock.type == P && macroblock.split == 0) {
-                                    from = ImVec2(macroblock.pos.x + halfSize, macroblock.pos.y + halfSize);
-                                }
-                                if (macroblock.type == P && macroblock.split == 1) {
-                                    float y = macroblock.pos.y + macroblock.size * (vectorIndex == 0 ? 0.25 : 0.75);
-                                    from = ImVec2(macroblock.pos.x + halfSize, y);
-                                }
-                                if (macroblock.type == P && macroblock.split == 2) {
-                                    float x = macroblock.pos.x + macroblock.size * (vectorIndex == 0 ? 0.25 : 0.75);
-                                    from = ImVec2(x, macroblock.pos.y + halfSize);
-                                }
+                                from = getMotionVectorBase(macroblock.type, macroblock, vectorIndex++);
                                 fromwin = getWindowPosition(seq, from);
                                 fromwin += clip.Min;
                                 ImVec2 vectorTowin = getWindowPosition(seq, from + ImVec2(std::get<0>(motionVector), std::get<1>(motionVector)));
@@ -764,7 +805,6 @@ void Window::displaySequence(Sequence& seq)
 
                                 // Same fromwin as macroblock (change to center fo block
                                 drawMacroblockVector(fromwin, vectorTowin, IM_COL32_WHITE);
-                                ++vectorIndex;
                             }
                         }
                     }
