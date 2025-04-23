@@ -283,7 +283,7 @@ static void parseArgs(int argc, char** argv)
                     macroblocks.emplace_back(B, pos, split, motionVectors);
                     break;
                 case 'S':
-                    macroblocks.emplace_back(S, pos, motionVectors);
+                    macroblocks.emplace_back(S, pos, motionVectors.front().front());
                     break;
                 default:
                     macroblocks.emplace_back(I, pos, 0, std::vector<std::vector<unsigned int>>(), 0);

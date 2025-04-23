@@ -133,19 +133,14 @@ private:
 
 public:
     // Constructor for `BlockType::S` (default)
-    explicit Macroblock(MacroblockType type, Pos pos, const std::vector<std::vector<std::tuple<int, int, int>>>& motionVectors)
+    explicit Macroblock(MacroblockType type, Pos pos, const std::tuple<int, int, int>& motionVector)
         : Block(MACROBLOCK_SIZE, getScaledPos(pos), 3)
         , type(type)
     {
         if (type != S) {
             throw std::invalid_argument("Invalid arguments for Macroblock S");
         }
-        if (motionVectors.empty() || motionVectors.front().empty()) {
-            throw std::invalid_argument("Invalid vectors for Macroblock S");
-        }
-        for (int i = 0; i < 4; i++) {
-            this->motionVectors.push_back(motionVectors.front().front());
-        }
+        this->motionVectors.push_back(motionVector);
     }
 
     // Constructor for `BlockType::I` (Intra-coded)

@@ -1,3 +1,9 @@
+<hr>
+
+# <i><b>CAUTION THIS IS OUTDATED</b></i>
+
+<hr>
+
 # This is the README file for the additions created in my fork
 
 ## Support for macroblocks
