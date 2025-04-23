@@ -253,8 +253,10 @@ static void parseArgs(int argc, char** argv)
                 continue;
             }
 
+
             std::vector<Macroblock> macroblocks;
             for (const auto& block : j["macroblocks"]) {
+
                 auto pos = Pos(block.value("pos", std::array<unsigned int, 2>()));
                 std::vector<std::vector<std::tuple<int, int, int>>> motionVectors;
 
@@ -272,7 +274,7 @@ static void parseArgs(int argc, char** argv)
 
                 switch (block_type) {
                 case 'I':
-                    macroblocks.emplace_back(I, pos, split, block.value("sub_split", 0));
+                    macroblocks.emplace_back(I, pos, split, block.value("modes", std::vector<std::vector<unsigned int>>()), block.value("sub_split", 0));
                     break;
                 case 'P':
                     macroblocks.emplace_back(P, pos, split, block.value("sub_split", 0), motionVectors);
@@ -280,8 +282,11 @@ static void parseArgs(int argc, char** argv)
                 case 'B':
                     macroblocks.emplace_back(B, pos, split, motionVectors);
                     break;
+                case 'S':
+                    macroblocks.emplace_back(S, pos, motionVectors);
+                    break;
                 default:
-                    macroblocks.emplace_back(I, pos, 0, 0);
+                    macroblocks.emplace_back(I, pos, 0, std::vector<std::vector<unsigned int>>(), 0);
                     break;
 
                 }

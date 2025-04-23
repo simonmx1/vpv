@@ -51,4 +51,5 @@ extern bool gShowHelp;
 
 extern int gMacroblockBordersShown;
 extern bool gMacroblockOverlayShown;
+extern bool gMacroblockModesShown;
 extern bool gMacroblockVectorsShown;

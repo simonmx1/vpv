@@ -34,6 +34,7 @@ bool gReloadImages;
 bool gShowHelp = false;
 int gMacroblockBordersShown;
 bool gMacroblockOverlayShown;
+bool gMacroblockModesShown;
 bool gMacroblockVectorsShown;
 
 Terminal term;
