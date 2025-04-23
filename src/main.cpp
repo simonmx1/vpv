@@ -898,6 +898,21 @@ static void help()
         B();
         T("ctrl+l/shift+ctrl+l: cycle through layouts");
     }
+    if (H("JPEG macroblocks")) {
+        T("vpv can visualize JPEG macroblocks and their properties.");
+        T("To enable the macroblock visualization, a json file according to the format specifications has to be passed using the metadata:<path> tag (for each image in each sequence).");
+        T("The current implementation supports S, I, P and B blocks with their various subdivisions, motion vectors and I-frame modes.");
+        ImGui::Spacing();
+        T("Shortcuts");
+        B();
+        T("m: enable macroblock grid (press again to show subdivisions)");
+        B();
+        T("n: enable color-coded macroblock type visualization");
+        B();
+        T("b: enable I-frame modes inside the macroblock grid");
+        B();
+        T("v: enable motion vectors for supported block types inside the macroblock grid (hover with mouse to show reference frames)");
+    }
 
     if (H("Edit")) {
         T("An edit program is a small code attached to a sequence.");
