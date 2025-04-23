@@ -495,7 +495,13 @@ static ImVec2 rotate(ImVec2 v, float angle_rad)
     };
 }
 
-static void drawMacroblockVector(ImVec2 base, ImVec2 relative, ImU32 color)
+static void drawMotionVectorReferenceFrame(int frame, ImVec2 pos, float size, ImU32 color)
+{
+    const char* buffer = std::to_string(frame).c_str();
+    ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), size, pos, color, buffer);
+}
+
+static void drawMacroblockVector(ImVec2 base, ImVec2 relative, ImU32 color, int referenceFrame, bool showReferenceFrame)
 {
     relative.y = -relative.y; // Pixels start in the top-left, vector format is bottom-left
 
@@ -527,6 +533,14 @@ static void drawMacroblockVector(ImVec2 base, ImVec2 relative, ImU32 color)
     ImVec2 points[] = { base, to, to, left_end, to, right_end };
 
     drawList->AddPolyline(points, IM_ARRAYSIZE(points), color, false, .1f);
+
+    if (showReferenceFrame) {
+        constexpr float fontSize = 20; // Not sure if dynamic is better
+        if (referenceFrame == 3) {
+            base -= ImVec2(fontSize * 0.8, 0); // move to the left if two vectors from the same base
+        }
+        drawMotionVectorReferenceFrame(referenceFrame, base, fontSize, color);
+    }
 }
 
 static void drawMacroblockOverlays(ImVec2 from, ImVec2 to, ImU32 color)
@@ -559,9 +573,8 @@ static void drawBlockBorders(ImVec2 from, ImVec2 to, const Block& block)
 
 static void drawMacroblockModes(unsigned int mode, ImVec2 pos, float size)
 {
-    char buffer[2];
-    buffer[0] = '0' + mode;
-    buffer[1] = '\0';
+
+    const char* buffer = std::to_string(mode).c_str();
     const float green = mode / 8.f;
     static ImU32 color = ImGui::GetColorU32(ImVec4(1.0f, green, 0.0f, 1.0f));
     ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), size, pos, color, buffer);
@@ -615,7 +628,7 @@ static ImU32 getMotionVectorColor(MacroblockType type, unsigned int referenceFra
         }
         return ImGui::GetColorU32(ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
     }
-    return IM_COL32_WHITE;
+    return ImGui::GetColorU32(ImVec4(1.0f, 0.0f, 1.0f, 1.0f));;
 }
 
 static ImVec2 getMotionVectorBase(MacroblockType type, Block block, unsigned int vectorIndex)
@@ -819,7 +832,12 @@ void Window::displaySequence(Sequence& seq)
                                         vectorTowin += clip.Min;
 
                                         vectorTowin -= fromwin;
-                                        drawMacroblockVector(fromwin, vectorTowin, getMotionVectorColor(macroblock.type, referenceFrame));
+                                        float hoverThreshold = seq.view->zoom * factor * 20.0f;
+                                        ImVec2 hover = getWindowPosition(seq, gHoveredPixel);
+                                        hover += clip.Min;
+                                        bool showReferenceFrame = ImLengthSqr(fromwin - hover) < hoverThreshold * hoverThreshold;
+
+                                        drawMacroblockVector(fromwin, vectorTowin, getMotionVectorColor(macroblock.type, referenceFrame), referenceFrame, showReferenceFrame);
                                     }
                                 }
                                 if (gMacroblockModesShown) {
@@ -856,9 +874,13 @@ void Window::displaySequence(Sequence& seq)
                                     vectorTowin += clip.Min;
 
                                     vectorTowin -= fromwin;
+                                    float hoverThreshold = seq.view->zoom * factor * 20.0f;
+                                    ImVec2 hover = getWindowPosition(seq, gHoveredPixel);
+                                    hover += clip.Min;
+                                    bool showReferenceFrame = ImLengthSqr(fromwin - hover) < hoverThreshold * hoverThreshold;
 
                                     // Same fromwin as macroblock (change to center of block)
-                                    drawMacroblockVector(fromwin, vectorTowin, getMotionVectorColor(macroblock.type, referenceFrame));
+                                    drawMacroblockVector(fromwin, vectorTowin, getMotionVectorColor(macroblock.type, referenceFrame), referenceFrame, showReferenceFrame);
                                 }
                             }
                             if (gMacroblockModesShown && !macroblock.modes.empty()) {
@@ -1222,6 +1244,7 @@ void Window::displaySequence(Sequence& seq)
             if (gMacroblockBordersShown > 2) {
                 gMacroblockBordersShown = 0;
                 gMacroblockVectorsShown = false;
+                gMacroblockModesShown = false;
             }
         }
         if (isKeyPressed("n")) {
