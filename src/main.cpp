@@ -129,7 +129,6 @@ static void parseArgs(int argc, char** argv)
             }
         }
 
-
         if (isoldthing) {
             int id = atoi(&arg[2]) - 1;
             id = std::max(0, id);
@@ -253,7 +252,6 @@ static void parseArgs(int argc, char** argv)
                 continue;
             }
 
-
             std::vector<Macroblock> macroblocks;
             for (const auto& block : j["macroblocks"]) {
 
@@ -288,7 +286,6 @@ static void parseArgs(int argc, char** argv)
                 default:
                     macroblocks.emplace_back(I, pos, 0, std::vector<std::vector<unsigned int>>(), 0);
                     break;
-
                 }
             }
 
@@ -660,10 +657,43 @@ int main(int argc, char* argv[])
             p->update();
         }
 
-        for (const auto& gWindow : gWindows) {
-            gWindow->display();
-        }
+        if (getLayoutName() == "scroll") {
+            if (auto& lua = config::get_lua(); lua["_G"]["SCROLL_CONTAINER"]) {
+                float min_x = lua["_G"]["SCROLL_CONTAINER"]["min_x"];
+                float min_y = lua["_G"]["SCROLL_CONTAINER"]["min_y"];
+                float width = lua["_G"]["SCROLL_CONTAINER"]["width"];
+                float height = lua["_G"]["SCROLL_CONTAINER"]["height"];
+                float content_width = lua["_G"]["SCROLL_CONTAINER"]["content_width"];
 
+                ImGui::SetNextWindowPos(ImVec2(min_x, min_y));
+                ImGui::SetNextWindowSize(ImVec2(width, height));
+
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+                ImGui::Begin("##ScrollContainer", nullptr,
+                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
+
+                ImGui::SetNextWindowContentSize(ImVec2(content_width, 0));
+
+                ImGui::BeginChild("##ScrollRegion", ImVec2(0, 0), false,
+                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_HorizontalScrollbar );
+
+                for (const auto& gWindow : gWindows) {
+                    gWindow->display();
+                }
+
+                ImGui::EndChild();
+                ImGui::End();
+                ImGui::PopStyleVar();
+            } else {
+                for (const auto& gWindow : gWindows) {
+                    gWindow->display();
+                }
+            }
+        } else {
+            for (const auto& gWindow : gWindows) {
+                gWindow->display();
+            }
+        }
         for (const auto& seq : gSequences) {
             seq->tick();
         }

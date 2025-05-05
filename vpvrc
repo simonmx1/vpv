@@ -241,6 +241,20 @@ do
         steplayout(windows, area, step)
     end})
 
+    table.insert(LAYOUTS, {name='scroll', fn=function(windows, area)
+        local win_width = 400 -- This number is arbitrarily set.
+        local total_width = #windows * win_width
+
+        _G.SCROLL_CONTAINER = {
+            min_x = area.min.x,
+            min_y = area.min.y,
+            width = area:get_width(),
+            height = area:get_height(),
+            content_width = total_width
+        }
+        steplayout(windows, area, ImVec2(win_width, 0))
+    end})
+
     table.insert(LAYOUTS, {name='custom', disabled=function() return not CUSTOM_LAYOUT[1] end, fn=function(windows, area)
         -- replace -1 with valid values
         local layout = {table.unpack(CUSTOM_LAYOUT)}

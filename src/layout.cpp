@@ -153,6 +153,8 @@ void parseLayout(const std::string& str)
         layout = "horizontal";
     } else if (str == "v" || str == "vertical") {
         layout = "vertical";
+    } else if (str == "s" || str == "scroll") {
+        layout = "scroll";
     } else {
         auto customLayout = parseCustomLayout(str);
         if (!customLayout.empty()) {

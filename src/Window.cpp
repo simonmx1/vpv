@@ -357,20 +357,34 @@ void Window::display()
     ImGui::GetStyle().WindowPadding = ImVec2(gWindowBorder, gWindowBorder);
     ImGui::GetStyle().WindowBorderSize = gWindowBorder;
 
-    char buf[512];
-    snprintf(buf, sizeof(buf), "%s###%s", getTitle().c_str(), ID.c_str());
     int flags = ImGuiWindowFlags_NoScrollbar
         | ImGuiWindowFlags_NoScrollWithMouse
         | ImGuiWindowFlags_NoFocusOnAppearing
         | ImGuiWindowFlags_NoCollapse
         | (getLayoutName() != "free" ? ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize : 0);
-    if (gShowWindowBar == 0 || (gShowWindowBar == 2 && gWindows.size() == 1)) {
+    bool hideTitleBar = !(gShowWindowBar == 0 || (gShowWindowBar == 2 && gWindows.size() == 1));
+    if (hideTitleBar) {
         flags |= ImGuiWindowFlags_NoTitleBar;
     }
-    if (!ImGui::Begin(buf, nullptr, flags)) {
-        ImGui::End();
-        ImGui::GetStyle() = prevStyle;
-        return;
+
+    if (getLayoutName() == "scroll") {
+        ImGui::BeginGroup();
+        ImGui::SetCursorPos(position);
+        if (!ImGui::BeginChild(ID.c_str(), size, true, flags)) {
+            ImGui::EndChild();
+            ImGui::EndGroup();
+            ImGui::GetStyle() = prevStyle;
+            return;
+        }
+
+    } else {
+        char buf[512];
+        snprintf(buf, sizeof(buf), "%s###%s", getTitle().c_str(), ID.c_str());
+        if (!ImGui::Begin(buf, nullptr, flags)) {
+            ImGui::End();
+            ImGui::GetStyle() = prevStyle;
+            return;
+        }
     }
 
     if (alwaysOnTop) {
@@ -379,7 +393,6 @@ void Window::display()
 
     ImGui::GetStyle() = prevStyle;
 
-    // just closed
     if (!opened) {
         relayout();
     }
@@ -404,7 +417,12 @@ void Window::display()
 
     const auto& seq = getCurrentSequence();
     if (!seq) {
-        ImGui::End();
+        if (getLayoutName() == "scroll") {
+            ImGui::EndChild();
+            ImGui::EndGroup();
+        } else {
+            ImGui::End();
+        }
         return;
     }
 
@@ -628,7 +646,8 @@ static ImU32 getMotionVectorColor(MacroblockType type, unsigned int referenceFra
         }
         return ImGui::GetColorU32(ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
     }
-    return ImGui::GetColorU32(ImVec4(1.0f, 0.0f, 1.0f, 1.0f));;
+    return ImGui::GetColorU32(ImVec4(1.0f, 0.0f, 1.0f, 1.0f));
+    ;
 }
 
 static ImVec2 getMotionVectorBase(MacroblockType type, Block block, unsigned int vectorIndex)
