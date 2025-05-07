@@ -1,6 +1,8 @@
 #ifndef MACROBLOCK_H
 #define MACROBLOCK_H
 
+#include "imgui.h"
+
 #include <array>
 #include <functional>
 #include <optional>
@@ -30,7 +32,6 @@ enum MacroblockType {
 class Block {
 public:
     unsigned int size = 0;
-    Pos pos;
     unsigned int split = 0;
     std::vector<std::tuple<int, int, int>> motionVectors;
     std::vector<unsigned int> modes;
@@ -39,8 +40,27 @@ public:
     Block(unsigned int size, Pos pos, unsigned int split);
     Block(unsigned int size, Pos pos, unsigned int split, std::vector<std::tuple<int, int, int>> motionVectors);
     Block(unsigned int size, Pos pos, unsigned int split, std::vector<unsigned int> modes);
+
+    // TODO check if c++17 and look into [[nodiscard]] annotations
+    // pos and size access through getters to provide float conversions for ImGui but stored as int, because of pixels
+    float getX() const { return static_cast<float>(pos.x); }
+    float getY() const { return static_cast<float>(pos.y); }
+    float getSize() const { return static_cast<float>(size); }
+    ImVec2 getTopLeft() const { return { getX(), getY() }; }
+    ImVec2 getBottomRight() const { return { getX() + getSize(), getY() + getSize() }; }
+
+private:
+    Pos pos;
 };
 
+/*
+ * Design choice explanation:
+ * Once a block has split mode 3, it automatically creates 4 subblocks,
+ * because it might have 8 vectors in a B-block. This can't be stored
+ * in a single Macroblock without subblocks, since it can hold a maximum
+ * of 4 vectors. Since B blocks do not have sub-splits,
+ * there is no necessity to have more than 16 vectors in a macroblock ever.
+ */
 class Macroblock : public Block {
 public:
     std::optional<std::array<Block, 4>> blocks = std::nullopt;

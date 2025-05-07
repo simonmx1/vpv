@@ -52,6 +52,8 @@
 
 static void help();
 
+static void parseMetadata(std::istream& jsonFile);
+
 static void parseArgs(int argc, char** argv)
 {
     if (argc == 1)
@@ -243,13 +245,34 @@ static void parseArgs(int argc, char** argv)
                 fprintf(stderr, "could not open json file '%s', skipped\n", filename);
                 continue;
             }
+            parseMetadata(jsonFile);
+        }
+    }
 
+    for (const auto& seq : gSequences) {
+        if (editings.find(seq) != editings.end()) {
+            const auto& edit = editings[seq];
+            seq->setEdit(edit.first, edit.second);
+        }
+        if (svgglobs.find(seq) != svgglobs.end()) {
+            auto& globs = svgglobs[seq];
+            seq->setSVGGlobs(globs);
+        }
+    }
+
+    if (!gWindows.empty()) {
+        gWindows[0]->shouldAskFocus = true;
+    }
+}
+
+static void parseMetadata(std::istream& jsonFile)
+{
             nlohmann::json j;
             jsonFile >> j;
 
             if (!j.contains("macroblocks") || !j["macroblocks"].is_array()) {
-                std::cerr << "JSON file is missing 'macroblocks' array." << std::endl;
-                continue;
+                throw std::runtime_error("JSON file is missing 'macroblocks' array.");
+                return;
             }
 
             std::vector<Macroblock> macroblocks;
@@ -291,23 +314,6 @@ static void parseArgs(int argc, char** argv)
 
             const auto& seq = gSequences[gSequences.size() - 1];
             seq->setMacroblocks(macroblocks);
-        }
-    }
-
-    for (const auto& seq : gSequences) {
-        if (editings.find(seq) != editings.end()) {
-            const auto& edit = editings[seq];
-            seq->setEdit(edit.first, edit.second);
-        }
-        if (svgglobs.find(seq) != svgglobs.end()) {
-            auto& globs = svgglobs[seq];
-            seq->setSVGGlobs(globs);
-        }
-    }
-
-    if (!gWindows.empty()) {
-        gWindows[0]->shouldAskFocus = true;
-    }
 }
 
 #if defined(__MINGW32__) && defined(main) // SDL is doing weird things

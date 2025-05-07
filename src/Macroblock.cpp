@@ -170,7 +170,7 @@ Macroblock::Macroblock(MacroblockType type, Pos pos, unsigned int split, unsigne
         break;
     }
     case 1:
-        [[fallthrough]];
+        //TODO CHECK IF C++17 [[fallthrough]];
     case 2: {
         validateVectors(motionVectors, 1, 2);
         this->motionVectors.push_back(motionVectors[0][0]);
@@ -206,7 +206,7 @@ Macroblock::Macroblock(MacroblockType type, Pos pos, unsigned int split, const s
         break;
     }
     case 1:
-        [[fallthrough]];
+        //TODO CHECK IF C++17 [[fallthrough]];
     case 2: {
         // TODO: Fix validation with variable length 1 or 2
         this->motionVectors.push_back(motionVectors[0][0]);
