@@ -421,6 +421,7 @@ if(USE_PLAMBDA)
     add_definitions(-DUSE_PLAMBDA)
     set(SOURCES ${SOURCES}
         src/wrapplambda.c
+            src/Macroblock.cpp
     )
 endif()
 

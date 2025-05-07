@@ -1,17 +1,15 @@
 #ifndef MACROBLOCK_H
 #define MACROBLOCK_H
 
-#include <iostream>
+#include <array>
+#include <functional>
 #include <optional>
-#include <utility>
-#include <variant>
 #include <vector>
 
 constexpr unsigned int MACROBLOCK_SIZE = 16;
 constexpr unsigned int SUBSPLIT_MASK = 0b11; // 3
-constexpr unsigned int FULL_SUBSPLIT = 0b11111111; // 255
-
-constexpr unsigned int sub_size = MACROBLOCK_SIZE / 2;
+constexpr unsigned int FULL_SUBSPLIT = 0b11111111; // 255, 2 bits each represent the subsplits (0 to 3)
+constexpr unsigned int SUB_SIZE = MACROBLOCK_SIZE / 2;
 
 struct Pos {
     unsigned int x = 0, y = 0;
@@ -29,213 +27,57 @@ enum MacroblockType {
     B
 };
 
-struct Block {
+class Block {
+public:
     unsigned int size = 0;
     Pos pos;
     unsigned int split = 0;
     std::vector<std::tuple<int, int, int>> motionVectors;
     std::vector<unsigned int> modes;
 
-    Block()
-        : pos(Pos({ 0, 0 }))
-    {
-    }
-
-    Block(unsigned int size, Pos pos, unsigned int split)
-        : size(size)
-        , pos(pos)
-        , split(split)
-    {
-    }
-    Block(unsigned int size, Pos pos, unsigned int split, std::vector<std::tuple<int, int, int>> motionVectors)
-        : size(size)
-        , pos(pos)
-        , split(split)
-        , motionVectors(std::move(motionVectors))
-    {
-    }
-    Block(unsigned int size, Pos pos, unsigned int split, std::vector<unsigned int> modes)
-        : size(size)
-        , pos(pos)
-        , split(split)
-        , modes(std::move(modes))
-    {
-    }
+    Block();
+    Block(unsigned int size, Pos pos, unsigned int split);
+    Block(unsigned int size, Pos pos, unsigned int split, std::vector<std::tuple<int, int, int>> motionVectors);
+    Block(unsigned int size, Pos pos, unsigned int split, std::vector<unsigned int> modes);
 };
 
-struct Macroblock : Block {
+class Macroblock : public Block {
+public:
     std::optional<std::array<Block, 4>> blocks = std::nullopt;
     MacroblockType type = S;
 
-private:
-    static Pos getScaledPos(const Pos& pos)
-    {
-        return Pos({ pos.x * MACROBLOCK_SIZE, pos.y * MACROBLOCK_SIZE });
-    }
-
-    void initSubBlocks(const Pos parent_pos, unsigned int subSplit, const std::vector<std::vector<std::tuple<int, int, int>>>& vectors = {})
-    {
-        auto& bs = blocks.emplace();
-        for (unsigned int i = 0; i < 2; ++i) {
-            for (unsigned int j = 0; j < 2; ++j) {
-                const unsigned int idx = 3 - (i * 2 + j);
-                auto sub_pos = Pos({ parent_pos.x * MACROBLOCK_SIZE + j * sub_size, parent_pos.y * MACROBLOCK_SIZE + i * sub_size });
-                if (vectors.empty()) {
-                    bs[idx] = Block(sub_size, sub_pos, subSplit & SUBSPLIT_MASK);
-                } else {
-                    bs[idx] = Block(sub_size, sub_pos, subSplit & SUBSPLIT_MASK, vectors[idx]);
-                }
-                subSplit >>= 2;
-            }
-        }
-    }
-    void initSubBlocks(const Pos parent_pos, unsigned int subSplit, const std::vector<std::vector<unsigned int>>& modes)
-    {
-        auto& bs = blocks.emplace();
-        for (unsigned int i = 0; i < 2; ++i) {
-            for (unsigned int j = 0; j < 2; ++j) {
-                const unsigned int idx = 3 - (i * 2 + j);
-                auto sub_pos = Pos({ parent_pos.x * MACROBLOCK_SIZE + j * sub_size, parent_pos.y * MACROBLOCK_SIZE + i * sub_size });
-                bs[idx] = Block(sub_size, sub_pos, subSplit & SUBSPLIT_MASK, modes[idx]);
-                subSplit >>= 2;
-            }
-        }
-    }
-
-    static void validateVectors(const std::vector<std::vector<std::tuple<int, int, int>>>& vectors, size_t outer, size_t inner = -1)
-    {
-        // May seem like unreachable code right now, but might produce segmentation fault later
-        // ReSharper disable once CppDFAConstantConditions
-        if (vectors.empty() && outer == 0) {
-            // ReSharper disable once CppDFAUnreachableCode
-            return;
-        }
-        if (vectors.size() != outer || inner != -1 && vectors[0].size() != inner) {
-            throw std::invalid_argument("Invalid motion vector dimensions!");
-        }
-    }
-
-    static void validateModes(const std::vector<std::vector<unsigned int>>& modes, unsigned int split, unsigned int subSplit)
-    {
-        if (modes.empty()) {
-            throw std::invalid_argument("Invalid mode vector dimensions for block I!");
-        }
-        if (split == 0 && modes.size() != 1 && modes.front().size() != 1) {
-            throw std::invalid_argument("Invalid mode vector dimensions for block I!");
-        }
-        if (split == 3 && subSplit == 0 && modes.size() != 4 && modes.front().size() != 1) {
-            throw std::invalid_argument("Invalid mode vector dimensions for block I!");
-        }
-        if (split == 3 && subSplit == 255 && modes.size() != 4 && modes.front().size() != 4) {
-            throw std::invalid_argument("Invalid mode vector dimensions for block I!");
-        }
-    }
-
-public:
     // Constructor for `BlockType::S` (default)
-    explicit Macroblock(MacroblockType type, Pos pos, const std::tuple<int, int, int>& motionVector)
-        : Block(MACROBLOCK_SIZE, getScaledPos(pos), 3)
-        , type(type)
-    {
-        if (type != S) {
-            throw std::invalid_argument("Invalid arguments for Macroblock S");
-        }
-        this->motionVectors.push_back(motionVector);
-    }
+    explicit Macroblock(MacroblockType type, Pos pos, const std::tuple<int, int, int>& motionVector);
 
     // Constructor for `BlockType::I` (Intra-coded)
     explicit Macroblock(MacroblockType type,
         Pos pos,
         unsigned int split,
         const std::vector<std::vector<unsigned int>>& modes,
-        unsigned int subSplit = 0)
-        : Block(MACROBLOCK_SIZE, getScaledPos(pos), split)
-        , type(type)
-    {
-        if (type != I) {
-            throw std::invalid_argument("Invalid type for Macroblock I");
-        }
-
-        if (split == 1 || split == 2) {
-            throw std::invalid_argument("Invalid splits for type I");
-        }
-
-        validateModes(modes, split, subSplit);
-        if (split == 0) {
-            this->modes = modes.front();
-        } else {
-            if (subSplit != 0 && subSplit != 255) {
-                throw std::invalid_argument("Invalid sub splits for type I");
-            }
-            initSubBlocks(pos, subSplit, modes);
-        }
-    }
+        unsigned int subSplit = 0);
 
     // Constructor for `BlockType::P` (Predicted) with motion vectors
     explicit Macroblock(MacroblockType type,
         Pos pos,
         unsigned int split,
         unsigned int subSplit,
-        const std::vector<std::vector<std::tuple<int, int, int>>>& motionVectors)
-        : Block(MACROBLOCK_SIZE, getScaledPos(pos), split)
-        , type(type)
-    {
-        if (type != P) {
-            throw std::invalid_argument("Invalid type for Macroblock P");
-        }
-        if (split == 0) {
-            validateVectors(motionVectors, 1, 1);
-            this->motionVectors.push_back(motionVectors[0][0]);
-        } else if (split == 1 || split == 2) {
-            validateVectors(motionVectors, 1, 2);
-            this->motionVectors.push_back(motionVectors[0][0]);
-            this->motionVectors.push_back(motionVectors[0][1]);
-        } else if (split == 3) {
-            if (subSplit == 0) {
-                initSubBlocks(pos, subSplit, motionVectors);
-            } else {
-                validateVectors(motionVectors, 4);
-
-                initSubBlocks(pos, subSplit, motionVectors);
-            }
-        } else {
-            throw std::invalid_argument("Invalid split value for Macroblock P");
-        }
-    }
+        const std::vector<std::vector<std::tuple<int, int, int>>>& motionVectors);
 
     // Constructor for `BlockType::B` with motion vectors
     explicit Macroblock(MacroblockType type,
         Pos pos,
         unsigned int split,
-        const std::vector<std::vector<std::tuple<int, int, int>>>& motionVectors)
-        : Block(MACROBLOCK_SIZE, getScaledPos(pos), split)
-        , type(type)
-    {
-        if (type != B) {
-            throw std::invalid_argument("Invalid type for Macroblock B");
-        }
-        if (split == 0) {
-            // Fix validation with variable length 1 or 2
-            this->motionVectors.push_back(motionVectors[0][0]);
-        } else if (split == 1 || split == 2) {
-            // Fix validation with variable length 1 or 2
-            this->motionVectors.push_back(motionVectors[0][0]);
-            if (std::get<2>(motionVectors[0][0]) > 1) {
-                this->motionVectors.push_back(motionVectors[0][1]);
-            } else {
-                this->motionVectors.emplace_back(0, 0, 0);
-            }
-            this->motionVectors.push_back(motionVectors[1][0]);
-            if (std::get<2>(motionVectors[1][0]) > 1) {
-                this->motionVectors.push_back(motionVectors[1][1]);
-            } else {
-                this->motionVectors.emplace_back(0, 0, 0);
-            }
-        } else if (split == 3) {
-            initSubBlocks(pos, 0, motionVectors);
-        } else {
-            throw std::invalid_argument("Invalid split value for Macroblock B");
-        }
-    }
+        const std::vector<std::vector<std::tuple<int, int, int>>>& motionVectors);
+
+private:
+    static Pos getScaledPos(const Pos& pos);
+    void initSubBlocksCommon(const Pos& parent_pos, unsigned int subSplit, const std::function<Block(unsigned int, Pos, unsigned int, unsigned int)>& blockConstructor);
+
+    void initSubBlocks(const Pos& parent_pos, unsigned int subSplit, const std::vector<std::vector<std::tuple<int, int, int>>>& vectors = {});
+    void initSubBlocks(const Pos& parent_pos, unsigned int subSplit, const std::vector<std::vector<unsigned int>>& modes);
+
+    static void validateVectors(const std::vector<std::vector<std::tuple<int, int, int>>>& vectors, size_t outer, std::optional<size_t> inner);
+    static void validateModes(const std::vector<std::vector<unsigned int>>& modes, unsigned int split, unsigned int subSplit);
+
 };
 #endif //MACROBLOCK_H
